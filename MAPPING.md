@@ -38,4 +38,4 @@ Mappings for MOMA Accession Importer
 | U | ignore |
 | V | `accession.general_note` |
 | W | `accession.general_note` |
-
+| A-W | all row data is appended to `accession.general_note` for reference|

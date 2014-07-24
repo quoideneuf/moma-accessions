@@ -117,7 +117,7 @@ function AccessionConverter(instances) {
       if (val.match(/^\d{4}$/)) {
         obj.dates = [{
           date_type: "single",
-          label: "other",
+       
           begin: val
         }];
       }
@@ -139,17 +139,28 @@ function AccessionConverter(instances) {
       }]
     },
     M: function(obj, val) {
-      logger.debug(val);
       var status = "new";
       if (val === "No") {
-        logger.debug("-----");
         status = "completed";
       }
 
       obj.collection_management = {
         processing_status: status
       }
+    },
+    V: function(obj, val) {
+      if (obj.general_note.length > 0) {
+        obj.general_note = "\n\n" + obj.general_note;
+      }
+      obj.general_note = "Note:\n" + val + obj.general_note;
+    },
+    W: function(obj, val) {
+      if (obj.general_note.length > 0) {
+        obj.general_note = "\n\n" + obj.general_note;
+      }
+      obj.general_note = "Finding Aid Note:\n" + val + obj.general_note;
     }
+
   }
 
   this.readCell = function (code, value) {
@@ -164,7 +175,7 @@ function AccessionConverter(instances) {
       });
     };
 
-    records[records.length - 1].general_note += ("Cell " + code + ": " + value + "\n");
+    records[records.length - 1].general_note += ("Snapshot of legacy Excel data:\nCell " + code + ": " + value + "\n");
     
     if (map[code]) {
 
@@ -221,14 +232,6 @@ app.extend(new Task('moma-accessions', function(argv) {
         loc.building = v;
         loc.classification = "Building";
 
-        // api.createLocation(loc, function(err, json) {          
-        //   if (err) {
-        //     console.log("Error " + err);
-        //   } else {
-        //     loc.uri = json.uri;
-        //   }
-        // });
-
         break;
 
       case 'C':
@@ -267,7 +270,6 @@ app.extend(new Task('moma-accessions', function(argv) {
       if(z[0] === "!") continue;
       if(z[1] === "1" && z.length === 2) continue;
 
-//      if(z[1] === "3") break;
 
       var v = JSON.stringify(worksheet[z].v);
 
@@ -279,47 +281,6 @@ app.extend(new Task('moma-accessions', function(argv) {
 
   converter.inspect(logger);
   converter.send();
-
-  // collections.SheetNames.forEach(function(y) {
-  //   var worksheet = collections.Sheets[y];
-
-  //   for (z in worksheet) {
-  //     if(z[0] === "!") continue;
-  //     if(z[1] === "1") continue;
-
-  //     var v = JSON.stringify(worksheet[z].v);
-
-  //     switch(z[0]) {
-  //     case 'A':
-  //       accession = {};
-  //       accession.title = v;
-
-  //       accession.instances = instances[v];
-
-  //       break;
-
-  //     case 'B':
-  //       accession.provenance = v;
-  //       break;
-
-  //     case 'C':
-  //       accession.general_note = v;
-  //       break;
-
-  //     case 'D':
-  //       ids = v.split('.');
-  //       i = 0;
-  //       // while (ids.length > 0) {
-  //       //   accession["id_" + i] = ids.shift();
-  //       // }
-        
-        
-
-  //     };
-
-  //     logger.debug(accession);
-  //   };
-  // });
 
 
 }).flags({

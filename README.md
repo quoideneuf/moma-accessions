@@ -3,6 +3,8 @@ MOMA Accessions
 
 Utility for migrating accession spreadsheets to ArchivesSpace.
 
+To use this, you will need to first install NodeJS and NPM, and then install the "ArchiveSpace Command Line Interface", an experimental tool for working with the ArchivesSpace API using the command line and Javascript.
+
 Usage:
 
     $ npm install as-cli

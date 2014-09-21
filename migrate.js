@@ -1,16 +1,24 @@
-var App = require('as_cli')['App'];
-var Task = require('as_cli')['Task'];
-var api = require('as_cli')['api'];
-var logger = require('as_cli')['logger'];
-var moment = require('moment');
+#!/usr/bin/env node
 
-var app = new App();
+var moment = require('moment');
 var XLSX = require('xlsx');
 
-function AccessionConverter(instances) {
+var argv = require('minimist')(process.argv.slice(2));
+var fs = require('fs');
+var path = require('path');
+
+Array.prototype.each = function(callback) {
+  for (var i=0; i < this.length; i++) { callback(this[i]); } 
+}
+
+
+function AccessionConverter(instances, api) {
   var instances = instances;
+  var api = api;
+
   var records = [];
   var classification_map = {};
+  var headers = {};
 
 
   var sendClassification = function (rec, callback) {
@@ -24,6 +32,7 @@ function AccessionConverter(instances) {
             title: rec.classification
           }, function(err, json) {
             if (err) throw "err " + err;
+            console.log("Saved Classification " + json.uri)
             rec.classification = {ref: json.uri}
             callback(rec);
           });
@@ -48,6 +57,8 @@ function AccessionConverter(instances) {
       api.createLocation(loc, function(err, json) {
         if (err) throw "err " + err;
 
+        console.log("Saved Location: " + json.uri);
+
         i.container.container_locations[0].ref = json.uri;
         delete i.container.container_locations[0]._resolved;
 
@@ -64,20 +75,22 @@ function AccessionConverter(instances) {
     api.createAccession(rec, function(err, json) {
       if (err) throw "err " + err;
 
-      logger.info("Saved Accession: " + json.uri);
+      
+      if (json.uri) {
+        console.log("Saved Accession: " + json.uri);
+      } else {
+        console.log("Failed to save Accession");
+        console.dir(json);
+      }
     });
   };
 
 
   this.send = function() {
 
-    logger.debug("Sending");
-    logger.debug(classification_map);
     records.each(function(rec) {
-      logger.debug(rec);
 
       var my_instances = instances[rec.title];
-      logger.debug(my_instances);
 
       sendLocations(rec, my_instances, function(rec) {
 
@@ -107,7 +120,9 @@ function AccessionConverter(instances) {
         i++;
       }
     },
-    E: 'id_3',
+    E: function(obj, val) {
+      obj.disposition = "RG Number " + val;
+    },
     G: function(obj, val) {
       if (val === "TRUE") {
         obj.publish = true;
@@ -117,7 +132,7 @@ function AccessionConverter(instances) {
       if (val.match(/^\d{4}$/)) {
         obj.dates = [{
           date_type: "single",
-       
+          label: "other",
           begin: val
         }];
       }
@@ -148,6 +163,7 @@ function AccessionConverter(instances) {
         processing_status: status
       }
     },
+    N: "access_restrictions_note",
     V: function(obj, val) {
       if (obj.general_note.length > 0) {
         obj.general_note = "\n\n" + obj.general_note;
@@ -155,12 +171,20 @@ function AccessionConverter(instances) {
       obj.general_note = "Note:\n" + val + obj.general_note;
     },
     W: function(obj, val) {
-      if (obj.general_note.length > 0) {
-        obj.general_note = "\n\n" + obj.general_note;
+      var ext = {
+        "title": "Finding Aid Link",
+        "location": val.replace(/^#/, '').replace(/#$/, '')
       }
-      obj.general_note = "Finding Aid Note:\n" + val + obj.general_note;
+
+      obj.external_documents.push(ext);
+
     }
 
+  }
+
+  this.setHeader = function (code, value) {
+    var value = value.trim().replace(/^"/, '').replace(/"$/, '');
+    headers[code] = value;
   }
 
   this.readCell = function (code, value) {
@@ -170,12 +194,13 @@ function AccessionConverter(instances) {
 
     if (code == 'A') {
       records.push({
-        general_note:"",
-        instances: []
+        general_note:"LEGACY EXCEL DATA:\n",
+        instances: [],
+        external_documents: []
       });
     };
 
-    records[records.length - 1].general_note += ("Snapshot of legacy Excel data:\nCell " + code + ": " + value + "\n");
+    records[records.length - 1].general_note += (headers[code] + ": " + value + "\n");
     
     if (map[code]) {
 
@@ -196,11 +221,11 @@ function AccessionConverter(instances) {
 };
 
 
+module.exports = function(api) {
 
-app.extend(new Task('moma-accessions', function(argv) {
   var locations = XLSX.readFile(argv['locations']);
   var collections = XLSX.readFile(argv['collections']);
-  var instances = {}
+  var instances = {};
 
   var loc;
   var cont_loc;
@@ -261,39 +286,24 @@ app.extend(new Task('moma-accessions', function(argv) {
     }
   });
 
-  var converter = new AccessionConverter(instances);
+  var converter = new AccessionConverter(instances, api);
 
   collections.SheetNames.forEach(function(y) {
     var worksheet = collections.Sheets[y];
 
     for (z in worksheet) {
       if(z[0] === "!") continue;
-      if(z[1] === "1" && z.length === 2) continue;
-
 
       var v = JSON.stringify(worksheet[z].v);
 
-      logger.debug(z + "::" + v);
-
-      converter.readCell(z[0], v)
+      if(z[1] === "1" && z.length === 2) {
+        converter.setHeader(z[0], v);
+        } else {
+          converter.readCell(z[0], v)
+        }
     };
   });
 
-  converter.inspect(logger);
   converter.send();
-
-
-}).flags({
-  locations: {
-    required: true,
-    boolean: false
-  },
-  collections: {
-    required: true,
-    boolean: false
-  }
-}));
-
-
-app.run();
+}
 

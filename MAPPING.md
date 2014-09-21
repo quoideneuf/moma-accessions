@@ -19,7 +19,7 @@ Mappings for MOMA Accession Importer
 | B | `accession.provenance` |
 | C | `accession.accession_date` |
 | D | `accession.id_{0-2}` |
-| E | `accession.id_3` |
+| E | `accession.id_3` (prepend 'RG Number') |
 | F | ignore |
 | G | `accession.publish` |
 | H | `accession.dates[0].begin` |
@@ -28,7 +28,7 @@ Mappings for MOMA Accession Importer
 | K | `accession.extents[0].number` |
 | L | ignore |
 | M | `accession.collection_management.processing_status` |
-| N | ignore |
+| N | `access_restrictions_note` |
 | O | ignore |
 | P | ignore |
 | Q | ignore |
@@ -37,5 +37,5 @@ Mappings for MOMA Accession Importer
 | T | ignore |
 | U | ignore |
 | V | `accession.general_note` |
-| W | `accession.general_note` |
+| W | `accession.external_documents` |
 | A-W | all row data is appended to `accession.general_note` for reference|
